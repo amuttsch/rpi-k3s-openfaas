@@ -1,0 +1,94 @@
+---
+- hosts: all
+  remote_user: pi
+  become: True
+  gather_facts: True
+
+  roles:
+  - role: jnv.unattended-upgrades
+    unattended_origins_patterns:
+      - 'origin=Raspbian,codename=${distro_codename},label=Raspbian'
+
+  pre_tasks:
+    - name: Change pi password
+      user:
+        name: pi
+        password: "{{ lookup('password', '{{ playbook_dir }}/credentials/{{ inventory_hostname }}/pi.pass length=32 encrypt=sha512_crypt') }}"
+
+    - name: Put pi into sudo group
+      user:
+        name: pi
+        append: yes
+        groups: sudo
+      tags:
+        - always
+  
+    - name: Remove excessive privilege from pi
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^#?pi'
+        line: '#pi ALL=(ALL) NOPASSWD:ALL'
+        validate: 'visudo -cf %s'
+      tags:
+        - always
+
+    - name: Set hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Set authorized key taken from file
+      authorized_key:
+        user: pi
+        state: present
+        key: "{{ lookup('file', '/home/amu/.ssh/id_rsa.pub') }}"
+
+    - name: Disable Password Authentication
+      lineinfile:
+        dest=/etc/ssh/sshd_config
+        regexp='^PasswordAuthentication'
+        line="PasswordAuthentication no"
+        state=present
+        backup=yes
+
+    - name: set timezone
+      copy: content='Europe/Berlin\n'
+        dest=/etc/timezone
+        owner=root
+        group=root
+        mode=0644
+        backup=yes
+
+    - name: Expand filesystem
+      shell: "raspi-config --expand-rootfs >> .ansible/sd-expanded"
+      args:
+        creates: .ansible/sd-expanded
+
+    - name: Update system
+      apt:
+        cache_valid_time: 3600
+        update_cache: yes
+        upgrade: safe
+
+    - name: Add IP address of all hosts to all hosts
+      lineinfile:
+        dest: /etc/hosts
+        regexp: '.*{{ item }}$'
+        line: "{{ hostvars[item].ansible_host }} {{item}}"
+        state: present
+      when: hostvars[item].ansible_host is defined
+      with_items: "{{ groups.all }}"
+
+    - name: Install some base packages
+      apt:
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - vim
+        - aptitude 
+
+  post_tasks:
+    - name: Reboot after bootstrap
+      reboot:
+
+
