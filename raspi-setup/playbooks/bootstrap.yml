@@ -1,6 +1,44 @@
 ---
-- hosts: all
+- hosts: k3s_rpi_master
+  remote_user: "{{ rpi_username }}"
+  gather_facts: True
+
+  tasks:
+    - name: Set authorized key taken from file
+      authorized_key:
+        user: pi
+        state: present
+        key: "{{ lookup('file', '/home/amu/.ssh/id_rsa.pub') }}"
+
+    - name: Generate RSA host key
+      command: "ssh-keygen -q -t rsa -f /home/{{ rpi_username }}/.ssh/id_rsa -C \"\" -N \"\""
+      args:
+        creates: /home/{{ rpi_username }}/.ssh/id_rsa.pub
+
+    - name: Get public key
+      shell: "cat /home/{{ rpi_username }}/.ssh/id_rsa.pub"
+      register: master_ssh_public_key
+
+- hosts: k3s_rpi_worker
   remote_user: pi
+  become: True
+  gather_facts: True
+
+  tasks:
+    - set_fact:
+        k3s_master_host: "{{ groups['k3s_rpi_master'][0] }}"
+
+    - set_fact:
+        master_ssh_public_key: "{{ hostvars[k3s_master_host]['master_ssh_public_key'] }}"
+
+    - name: Set authorized key taken from master
+      authorized_key:
+        user: pi
+        state: present
+        key: "{{ master_ssh_public_key.stdout }}"
+
+- hosts: all
+  remote_user: "{{ rpi_username }}"
   become: True
   gather_facts: True
 
@@ -13,15 +51,13 @@
     - name: Change pi password
       user:
         name: pi
-        password: "{{ lookup('password', '{{ playbook_dir }}/credentials/{{ inventory_hostname }}/pi.pass length=32 encrypt=sha512_crypt') }}"
+        password: "{{ lookup('password', '{{ playbook_dir }}/credentials/{{ inventory_hostname }}/pi.pass length=32 chars=ascii_letters,digits') }}"
 
     - name: Put pi into sudo group
       user:
         name: pi
         append: yes
         groups: sudo
-      tags:
-        - always
   
     - name: Remove excessive privilege from pi
       lineinfile:
@@ -30,25 +66,17 @@
         regexp: '^#?pi'
         line: '#pi ALL=(ALL) NOPASSWD:ALL'
         validate: 'visudo -cf %s'
-      tags:
-        - always
 
     - name: Set hostname
       hostname:
         name: "{{ inventory_hostname }}"
-
-    - name: Set authorized key taken from file
-      authorized_key:
-        user: pi
-        state: present
-        key: "{{ lookup('file', '/home/amu/.ssh/id_rsa.pub') }}"
 
     - name: Disable Password Authentication
       lineinfile:
         dest=/etc/ssh/sshd_config
         regexp='^PasswordAuthentication'
         line="PasswordAuthentication no"
-        state=present
+       state=present
         backup=yes
 
     - name: set timezone
@@ -64,20 +92,19 @@
       args:
         creates: .ansible/sd-expanded
 
+    - name: Add IP address of all hosts to all hosts
+      template:
+        src: "hosts.j2"
+        dest: "/etc/hosts"
+        owner: "root"
+        group: "root"
+        mode: 0644
+
     - name: Update system
       apt:
         cache_valid_time: 3600
         update_cache: yes
         upgrade: safe
-
-    - name: Add IP address of all hosts to all hosts
-      lineinfile:
-        dest: /etc/hosts
-        regexp: '.*{{ item }}$'
-        line: "{{ hostvars[item].ansible_host }} {{item}}"
-        state: present
-      when: hostvars[item].ansible_host is defined
-      with_items: "{{ groups.all }}"
 
     - name: Install some base packages
       apt:
@@ -86,8 +113,24 @@
         packages:
         - vim
         - aptitude 
+        - git
 
-  post_tasks:
+- hosts: k3s_rpi_worker
+  remote_user: "{{ rpi_username }}"
+  gather_facts: True
+  become: True
+
+  tasks:
+    - name: Reboot after bootstrap
+      reboot:
+
+
+- hosts: k3s_rpi_master
+  remote_user: "{{ rpi_username }}"
+  gather_facts: True
+  become: True
+
+  tasks:
     - name: Reboot after bootstrap
       reboot:
 

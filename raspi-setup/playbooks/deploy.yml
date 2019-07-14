@@ -1,0 +1,9 @@
+---
+- name: Setup cluster network
+  import_playbook: cluster.yml
+
+- name: Bootstrap cluster
+  import_playbook: bootstrap.yml
+
+- name: Install k3s
+  import_playbook: k3s.yml

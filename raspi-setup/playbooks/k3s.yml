@@ -28,5 +28,65 @@
         k3s_master_token: "{{ hostvars[k3s_master_host]['k3snodetoken'] }}"
 
     - name: Install / upgrade k3s on worker nodes and connect to master
-      shell: "curl -sfL https://get.k3s.io | K3S_URL=https://{{ k3s_master_host }}:6443 K3S_TOKEN={{ k3s_master_token }} sh -"
+      shell: "curl -sfL https://get.k3s.io | K3S_URL=https://{{ master_node_ip }}:6443 K3S_TOKEN={{ k3s_master_token }} sh -"
+
+- hosts: k3s_rpi_master
+  remote_user: pi
+  become: True
+  gather_facts: True
+
+  tasks:
+    - name: Make sure destination dir exists
+      file:
+        path: /home/{{ rpi_username }}/kubedeployments
+        state: directory
+
+    - name: Copy dashboard admin file
+      copy:
+        src: files/dashboard-admin.yaml 
+        dest: /home/{{ rpi_username }}/kubedeployments/dashboard-admin.yaml
+        owner: "{{ rpi_username }}"
+        group: "{{ rpi_username }}"
+        mode: '0644'
+
+    - name: Apply dashboard admin
+      shell: "k3s kubectl apply -f /home/{{ rpi_username }}/kubedeployments/dashboard-admin.yaml"
+
+    - name: Install dashboard
+      shell: "k3s kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta1/aio/deploy/recommended.yaml"
+
+    - name: Get dashboard token
+      shell: "k3s kubectl -n kube-system describe secret $(k3s kubectl -n kube-system get secret | grep admin-user | awk '{print $1}') | grep token: | cut -d':' -f2 | xargs"
+      register: dashboard_token
+
+    - debug:
+        msg: "{{ dashboard_token.stdout }}"
+
+    - name: Save dashboard token to credentials/dashboard_token
+      become: False
+      local_action: copy content={{ dashboard_token.stdout }} dest={{ playbook_dir }}/credentials/dashboard_token
+
+    - name: Download kubernetes config
+      fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "{{ playbook_dir }}/credentials/k3s.yaml"
+        flat: yes
+
+    - name: Set correct IP in downloaded kubernetes config
+      become: False
+      local_action: 
+        module: lineinfile
+        dest: "{{ playbook_dir }}/credentials/k3s.yaml"
+        regexp: "^    server"
+        line: "    server: {{ jumphost_ip }}:6443"
+
+    - name: Clone OpenFAAS kubernetes charts
+      git:
+        repo: https://github.com/openfaas/faas-netes.git
+        dest: /home/{{ rpi_username }}/faas-netes
+
+    - name: Install OpenFAAS
+      shell: |
+        k3s kubectl apply -f /home/{{ rpi_username }}/faas-netes/namespaces.yml
+        k3s kubectl apply -f /home/{{ rpi_username }}/faas-netes/yaml_armhf
 

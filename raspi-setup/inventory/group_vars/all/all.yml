@@ -1,0 +1,53 @@
+# Defines jumphost IP address to use as bastion host to reach isolated hosts
+jumphost_name: "{{ groups['k3s_rpi_master'][0] }}"
+jumphost_ip: "{{ hostvars[jumphost_name].ansible_host }}"
+
+# Defines IPTABLES rules to define on jumphost
+jumphost_iptables_rules:
+  - chain: POSTROUTING
+    jump: MASQUERADE
+    out_interface: "{{ external_iface }}"
+    source: "{{ dhcp_scope_subnet }}.0/24"
+    state: present
+    table: nat
+  - chain: FORWARD
+    ctstate: RELATED,ESTABLISHED
+    in_interface: "{{ external_iface }}"
+    jump: ACCEPT
+    out_interface: "{{ cluster_iface }}"
+    state: present
+    table: filter
+  - chain: FORWARD
+    in_interface: "{{ cluster_iface }}"
+    jump: ACCEPT
+    out_interface: "{{ external_iface }}"
+    state: present
+    table: filter
+
+rpi_username: pi
+rpi_password: raspberry
+
+# Defines the ansible user to use when connecting to devices
+ansible_user: "{{ rpi_username }}"
+
+# Defines the ansible password to use when connecting to devices
+ansible_password: "{{ rpi_password }}"
+
+# Defines DHCP scope subnet mask
+dhcp_scope_netmask: 255.255.255.0
+
+# Defines DHCP scope address
+# Important: set the range to exactly the number of pi's in the cluster.
+# It also has to match the hosts in the host.inv file!
+dhcp_master: "{{ dhcp_scope_subnet }}.200"
+dhcp_scope_start_range: "{{ dhcp_scope_subnet }}.201"
+dhcp_scope_end_range: "{{ dhcp_scope_subnet }}.203"
+
+# Defines dhcp scope subnet for isolated network
+dhcp_scope_subnet: 192.168.50
+
+master_node_ip: "{{ dhcp_master }}"
+
+cluster_iface: eth0
+external_iface: eth1
+

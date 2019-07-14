@@ -1,0 +1,63 @@
+---
+- hosts: k3s_rpi_master
+  remote_user: pi
+  become: True
+  gather_facts: True
+
+  tasks:
+    - name: Install dnsmasq and iptables persistance
+      apt:
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - dnsmasq
+        - iptables-persistent 
+        - netfilter-persistent
+
+    - name: Copy dnsmasq config
+      template:
+        src: "dnsmasq.conf.j2"
+        dest: "/etc/dnsmasq.conf"
+        owner: "root"
+        group: "root"
+        mode: 0644
+
+    - name: Copy dhcpcd config
+      template:
+        src: "dhcpcd.conf.j2"
+        dest: "/etc/dhcpcd.conf"
+        owner: "root"
+        group: "root"
+        mode: 0644
+
+    - name: restart dnsmasq
+      service:
+        name: dnsmasq
+        state: restarted
+      become: true
+
+    - name: Configuring IPTables
+      iptables:
+        table: "{{ item['table']|default(omit) }}"
+        chain: "{{ item['chain']|default(omit) }}"
+        ctstate: "{{ item['ctstate']|default(omit) }}"
+        source: "{{ item['source']|default(omit) }}"
+        in_interface: "{{ item['in_interface']|default(omit) }}"
+        out_interface: "{{ item['out_interface']|default(omit) }}"
+        jump: "{{ item['jump']|default(omit) }}"
+        state: "{{ item['state']|default(omit) }}"
+      become: true
+      register: _iptables_configured
+      tags:
+        - rpi-iptables
+      with_items: "{{ jumphost_iptables_rules }}"
+
+    - name: Save IPTables
+      command: service netfilter-persistent save
+      when: _iptables_configured['changed']
+
+  post_tasks:
+    - name: Reboot after cluster setup
+      reboot:
+
+

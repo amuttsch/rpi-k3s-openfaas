@@ -1,0 +1,3 @@
+---
+ansible_ssh_common_args: '-o ProxyCommand="ssh -W %h:%p -q {{ rpi_username }}@{{ jumphost_ip }}"'
+
