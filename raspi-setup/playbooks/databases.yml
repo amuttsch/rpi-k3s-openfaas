@@ -1,0 +1,41 @@
+---
+- hosts: k3s_rpi_master
+  remote_user: pi
+  become: True
+  gather_facts: True
+
+  tasks:
+    - name: Install redis and postgres
+      apt:
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - redis
+        - postgresql-11
+
+    - name: Redis - Set bind to cluster network
+      lineinfile:
+        dest: /etc/redis/redis.conf
+        state: present
+        regexp: '^bind'
+        line: 'bind 127.0.0.1 {{ master_node_ip }}'
+
+    - name: Postgresql - Set bind to cluster network
+      lineinfile:
+        dest: /etc/postgresql/11/main/postgresql.conf
+        state: present
+        regexp: '^#listen_addresses'
+        line: "listen_addresses = '127.0.0.1, {{ master_node_ip }}'"
+
+    - name: restart Redis
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: redis
+
+    - name: restart Postgresql
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: postgresql
+

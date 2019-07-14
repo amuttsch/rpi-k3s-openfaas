@@ -7,3 +7,6 @@
 
 - name: Install k3s
   import_playbook: k3s.yml
+
+- name: Install databases
+  import_playbook: databases.yml
