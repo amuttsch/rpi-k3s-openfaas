@@ -1,0 +1,75 @@
+---
+- hosts: k3s_rpi_master
+  remote_user: "{{ rpi_username }}"
+  gather_facts: True
+  become: True
+
+  tasks:
+    - name: Check if i2c is enabled
+      shell: "raspi-config nonint get_i2c"
+      register: i2c_disabled
+
+    - name: Enable i2c
+      shell: "raspi-config nonint do_i2c 0"
+      when: i2c_disabled.stdout == "1"
+
+    - name: Reboot after enabling i2c
+      when: i2c_disabled.stdout == "1"
+      reboot:
+
+    - name: Install python pip, smbus and i2c-tools 
+      apt:
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - python3-pip
+        - python3-smbus
+        - i2c-tools
+
+    - name: Install kubernetes python package
+      pip:
+        name: kubernetes
+        executable: pip3
+
+    - name: Create .kube directory
+      become: False
+      file:
+        path: /home/{{ rpi_username }}/.kube
+        state: directory
+
+    - name: Copy kube config and fix ip
+      shell: "cp /etc/rancher/k3s/k3s.yaml /home/{{ rpi_username }}/.kube/config && chown {{rpi_username }}:{{ rpi_username }} /home/{{ rpi_username }}/.kube/config && sed -i -e 's/[0-9]\\{1,3\\}\\.[0-9]\\{1,3\\}\\.[0-9]\\{1,3\\}\\.[0-9]\\{1,3\\}/127.0.0.1/g' /home/{{ rpi_username }}/.kube/config"
+
+    - name: Create k3s_lcd directory
+      become: False
+      file:
+        path: /home/{{ rpi_username }}/k3s_status_lcd
+        state: directory
+
+    - name: Copy k3s_status_lcd files
+      become: False
+      copy:
+        src: "{{ item }}"
+        dest: /home/{{ rpi_username }}/k3s_status_lcd
+        owner: "{{ rpi_username }}"
+        group: "{{ rpi_username }}"
+        mode: '0644'
+      with_fileglob:
+        - ../../k3s_status_lcd/*
+
+    - name: Install k3s-status service
+      template:
+        src: "../../k3s_status_lcd/k3s-status.service.j2"
+        dest: "/etc/systemd/system/k3s-status.service"
+        owner: "root"
+        group: "root"
+        mode: 0644
+
+    - name: Start k3s-status service
+      systemd:
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+        name: k3s-status
+
+

@@ -37,11 +37,13 @@
 
   tasks:
     - name: Make sure destination dir exists
+      become: False
       file:
         path: /home/{{ rpi_username }}/kubedeployments
         state: directory
 
     - name: Copy dashboard admin file
+      become: False
       copy:
         src: files/dashboard-admin.yaml 
         dest: /home/{{ rpi_username }}/kubedeployments/dashboard-admin.yaml

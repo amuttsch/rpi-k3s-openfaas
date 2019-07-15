@@ -1,0 +1,12 @@
+[Unit]
+Description=k3s lcd status monitor
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/{{ rpi_username }}/k3s_status_lcd/k3s_status.py
+User={{ rpi_username }}
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

@@ -1,3 +1,6 @@
+# Use python3
+ansible_python_interpreter: /usr/bin/python3
+
 # Defines jumphost IP address to use as bastion host to reach isolated hosts
 jumphost_name: "{{ groups['k3s_rpi_master'][0] }}"
 jumphost_ip: "{{ hostvars[jumphost_name].ansible_host }}"

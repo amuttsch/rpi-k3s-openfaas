@@ -1,6 +1,6 @@
 ---
 - name: Setup cluster network
-  import_playbook: cluster.yml
+  import_playbook: network.yml
 
 - name: Bootstrap cluster
   import_playbook: bootstrap.yml
@@ -10,3 +10,6 @@
 
 - name: Install databases
   import_playbook: databases.yml
+
+- name: Add lcd display
+  import_playbook: lcd.yml
