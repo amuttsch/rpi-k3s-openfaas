@@ -6,9 +6,6 @@ import os
 import struct
 import socket
 import time
-import urllib
-from urllib.request import urlopen
-from urllib.error import URLError
 
 from kubernetes import client, config
 

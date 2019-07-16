@@ -65,6 +65,14 @@
         group: "root"
         mode: 0644
 
+    - name: Install k3s-shutdown script
+      template:
+        src: "../../k3s_status_lcd/k3s-lcd-shutdown.sh.j2"
+        dest: "/lib/systemd/system-shutdown/k3s-lcd-shutdown.sh"
+        owner: "root"
+        group: "root"
+        mode: 0744
+
     - name: Start k3s-status service
       systemd:
         state: restarted
