@@ -1,4 +1,3 @@
-kubectl proxy
+# Privision a Raspberry Pi Cluster with Ansible using k3s and OpenFaaS
 
-Forward prometheus
-kubectl port-forward prometheus-67dd6ffc8f-jwjjm 9090
+A detailed instruction can be found in this blog post: https://blog.codecentric.de/en/2019/08/build-your-own-s…k3s-and-openfaas/
