@@ -12,9 +12,6 @@
       shell: "cat /var/lib/rancher/k3s/server/node-token"
       register: k3s_node_token
 
-    - set_fact: 
-        k3snodetoken: "{{ k3s_node_token.stdout }}"
-
 - hosts: k3s_rpi_worker
   remote_user: pi
   become: True
@@ -25,7 +22,7 @@
         k3s_master_host: "{{ groups['k3s_rpi_master'][0] }}"
 
     - set_fact:
-        k3s_master_token: "{{ hostvars[k3s_master_host]['k3snodetoken'] }}"
+        k3s_master_token: "{{ hostvars[k3s_master_host]['k3s_node_token'].stdout }}"
 
     - name: Install / upgrade k3s on worker nodes and connect to master
       shell: "curl -sfL https://get.k3s.io | K3S_URL=https://{{ master_node_ip }}:6443 K3S_TOKEN={{ k3s_master_token }} sh -"
