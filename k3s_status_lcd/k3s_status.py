@@ -51,7 +51,11 @@ def get_ip_address(ifname):
 
 def print_ip():
     lcd.lcd_string('eth1:', lcd.LCD_LINE_1)
-    lcd.lcd_string(get_ip_address('eth1'), lcd.LCD_LINE_2)
+    try:
+        lcd.lcd_string(get_ip_address('eth1'), lcd.LCD_LINE_2)
+    except:
+        lcd.lcd_string('Not connected', lcd.LCD_LINE_2)
+
 
 try:
     lcd.lcd_init()
