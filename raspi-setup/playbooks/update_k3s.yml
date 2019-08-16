@@ -1,0 +1,52 @@
+---
+- hosts: k3s_rpi_master
+  remote_user: pi
+  become: True
+  gather_facts: True
+
+  tasks:
+    - name: Install / upgrade k3s on master node
+      shell: "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC=\"server --bind-address 0.0.0.0\" sh -"
+
+    - name: Get token from master
+      shell: "cat /var/lib/rancher/k3s/server/node-token"
+      register: k3s_node_token
+
+    - name: Download kubernetes config
+      fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "{{ playbook_dir }}/credentials/k3s.yaml"
+        flat: yes
+
+    - name: Set correct IP in downloaded kubernetes config
+      become: False
+      local_action: 
+        module: lineinfile
+        dest: "{{ playbook_dir }}/credentials/k3s.yaml"
+        regexp: "^    server"
+        line: "    server: https://{{ jumphost_ip }}:6443"
+
+    - name: Create .kube directory
+      become: False
+      file:
+        path: /home/{{ rpi_username }}/.kube
+        state: directory
+
+    - name: Copy kube config and fix ip
+      shell: "cp /etc/rancher/k3s/k3s.yaml /home/{{ rpi_username }}/.kube/config && chown {{rpi_username }}:{{ rpi_username }} /home/{{ rpi_username }}/.kube/config && sed -i -e 's/[0-9]\\{1,3\\}\\.[0-9]\\{1,3\\}\\.[0-9]\\{1,3\\}\\.[0-9]\\{1,3\\}/127.0.0.1/g' /home/{{ rpi_username }}/.kube/config"
+
+- hosts: k3s_rpi_worker
+  remote_user: pi
+  become: True
+  gather_facts: True
+
+  tasks:
+    - set_fact:
+        k3s_master_host: "{{ groups['k3s_rpi_master'][0] }}"
+
+    - set_fact:
+        k3s_master_token: "{{ hostvars[k3s_master_host]['k3s_node_token'].stdout }}"
+
+    - name: Install / upgrade k3s on worker nodes and connect to master
+      shell: "curl -sfL https://get.k3s.io | K3S_URL=https://{{ master_node_ip }}:6443 K3S_TOKEN={{ k3s_master_token }} sh -"
+

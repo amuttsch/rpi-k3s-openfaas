@@ -1,0 +1,18 @@
+---
+- hosts: k3s_rpi_worker
+  remote_user: pi
+  gather_facts: False
+  become: True
+
+  tasks:
+    - name: reboot workers
+      reboot:
+
+- hosts: k3s_rpi_master
+  remote_user: pi
+  gather_facts: False
+  become: True
+
+  tasks:
+    - name: reboot master
+      reboot:

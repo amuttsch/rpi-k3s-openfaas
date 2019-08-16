@@ -1,0 +1,17 @@
+---
+- hosts: k3s_rpi_master
+  remote_user: pi
+  become: True
+  gather_facts: True
+
+  tasks:
+    - name: Clone OpenFAAS kubernetes charts
+      git:
+        repo: https://github.com/openfaas/faas-netes.git
+        dest: /home/{{ rpi_username }}/faas-netes
+
+    - name: Install OpenFAAS
+      shell: |
+        k3s kubectl apply -f /home/{{ rpi_username }}/faas-netes/namespaces.yml
+        k3s kubectl apply -f /home/{{ rpi_username }}/faas-netes/yaml_armhf
+

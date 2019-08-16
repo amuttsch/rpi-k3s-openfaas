@@ -31,15 +31,6 @@
         name: kubernetes
         executable: pip3
 
-    - name: Create .kube directory
-      become: False
-      file:
-        path: /home/{{ rpi_username }}/.kube
-        state: directory
-
-    - name: Copy kube config and fix ip
-      shell: "cp /etc/rancher/k3s/k3s.yaml /home/{{ rpi_username }}/.kube/config && chown {{rpi_username }}:{{ rpi_username }} /home/{{ rpi_username }}/.kube/config && sed -i -e 's/[0-9]\\{1,3\\}\\.[0-9]\\{1,3\\}\\.[0-9]\\{1,3\\}\\.[0-9]\\{1,3\\}/127.0.0.1/g' /home/{{ rpi_username }}/.kube/config"
-
     - name: Create k3s_lcd directory
       become: False
       file:
