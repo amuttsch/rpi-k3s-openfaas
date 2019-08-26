@@ -3,7 +3,7 @@ k3s_rpi_master
 k3s_rpi_worker
 
 [k3s_rpi_master]
-k3s-rpi1 ansible_host=172.16.0.229
+k3s-rpi1 ansible_host=192.168.0.58
 
 [k3s_rpi_worker]
 k3s-rpi2 ansible_host=192.168.50.201

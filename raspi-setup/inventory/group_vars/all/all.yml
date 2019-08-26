@@ -26,6 +26,9 @@ jumphost_iptables_rules:
     out_interface: "{{ external_iface }}"
     state: present
     table: filter
+  # https://stackoverflow.com/a/47618584
+  - chain: FORWARD
+    jump: ACCEPT
 
 rpi_username: pi
 rpi_password: raspberry
